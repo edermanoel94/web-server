@@ -1,0 +1,4 @@
+.idea
+web-server
+*.exe
+vendor
