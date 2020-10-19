@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	get   = "GET / HTTP/1.1"
-	sleep = "GET /sleep HTTP/1.1"
+	index = "GET / HTTP/1.1\r\n"
+	sleep = "GET /sleep HTTP/1.1\r\n"
 )
 
 func main() {
@@ -44,28 +44,25 @@ func handler(conn net.Conn) {
 
 	defer conn.Close()
 
-	buffer := bufio.NewScanner(conn)
+	buffer := make([]byte, 1024)
 
-	var data string
-
-	for buffer.Scan() {
-
-		data += buffer.Text()
-	}
-
-	page, statusCode := getPageAndStatusCode(data)
-
-	content, err := ioutil.ReadFile(fmt.Sprintf("./static/%s", page))
+	_, err := conn.Read(buffer)
 
 	if err != nil {
-		log.Printf("Error on open page html: %s \n", err.Error())
+		fmt.Printf("Error reading request from client: %s \n", err.Error())
 		return
 	}
 
-	response := fmt.Sprintf("HTTP/1.1 %s\r\nContent-Length: %d\r\n\r\n%s",
-		statusCode, len(content), content)
+	page, statusCode := getPageAndStatusCode(string(buffer))
 
-	_, err = fmt.Fprintf(conn, response)
+	response, err := getContentPage(page, statusCode)
+
+	if err != nil {
+		fmt.Printf("Error on open page html: %s \n", err.Error())
+		return
+	}
+
+	_, err = io.WriteString(conn, response)
 
 	if err != nil {
 		fmt.Printf("Some shit happens on write to connection: %s \n", err.Error())
@@ -73,9 +70,23 @@ func handler(conn net.Conn) {
 	}
 }
 
+func getContentPage(page string, statusCode string) (string, error) {
+
+	content, err := ioutil.ReadFile(fmt.Sprintf("./static/%s", page))
+
+	if err != nil {
+		return "", err
+	}
+
+	response := fmt.Sprintf("HTTP/1.1 %s\r\nContent-Length: %d\r\n\r\n%s",
+		statusCode, len(content), content)
+
+	return response, nil
+}
+
 func getPageAndStatusCode(header string) (string, string) {
 
-	if strings.HasPrefix(header, get) {
+	if strings.HasPrefix(header, index) {
 		return "index.html", "200 OK"
 	} else if strings.HasPrefix(header, sleep) {
 		time.Sleep(2 * time.Second)
