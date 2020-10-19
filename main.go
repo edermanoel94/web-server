@@ -8,6 +8,7 @@ import (
 	"net"
 	"strings"
 	"time"
+	"web-server/worker"
 )
 
 const (
@@ -27,6 +28,8 @@ func main() {
 
 	fmt.Println("Starting server on port 8080....")
 
+	threadPool := worker.New(4)
+
 	for {
 
 		conn, err := listen.Accept()
@@ -36,7 +39,9 @@ func main() {
 			continue
 		}
 
-		go handler(conn)
+		threadPool.Add(func() {
+			handler(conn)
+		})
 	}
 }
 
