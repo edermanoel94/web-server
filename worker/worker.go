@@ -15,12 +15,12 @@ func New(n int) *ThreadPool {
 	}
 
 	for i := 0; i < n; i++ {
-		go func(i int) {
+		go func() {
 			for f := range threadPool.f {
 				f()
 			}
 			fDone <- struct{}{}
-		}(i + 1)
+		}()
 	}
 
 	go func() {
